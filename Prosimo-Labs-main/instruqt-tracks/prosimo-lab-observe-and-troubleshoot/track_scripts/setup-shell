@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Install Terraform & Requests library
+apt update -y
+apt install git -y
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+apt update -y
+apt install terraform -y
+pip3 install requests
+
+# Pull Lab assets (terraform & scripts) from github
+mkdir /root/prosimo-lab/
+git clone https://github.com/iracic82/Prosimo-Labs.git
+cp -r /root/ProsimoLabs/instruqt-tracks/prosimo-lab-observe-and-troubleshoot/assets /root/prosimo-lab/
+#rm -r /root/ProsimoLabs
+
+# Run Python scripts
+cd /root/prosimo-lab/
+python3 assets/scripts/tenant_deploy.py
+sleep 10
+
+
+# Set runtime variables
+
+# agent variable set AWS_ID ${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_ACCOUNT_ID}
+# agent variable set User_Email ${INSTRUQT_USER_EMAIL}
+# agent variable set AWS_USER ${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_USERNAME}
+# agent variable set AWS_PASS ${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_PASSWORD}
+# agent variable set Prosimo_Key ${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID}
+# agent variable set Prosimo_Secret ${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY}
+# 
+# agent variable set AZURE_SUBSCRIPTION_NAME ${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_NAME}
+# agent variable set AZURE_SUBSCRIPTION_ID ${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID}
+# agent variable set AZURE_SUBSCRIPTION_USERNAME ${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_USERNAME}
+# agent variable set AZURE_SUBSCRIPTION_PASSWORD ${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_PASSWORD}
+
+
+# Set env variables
+
+echo "export TF_VAR_Access_Key_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID} " >> /root/.bashrc
+echo "export TF_VAR_Access_Secret_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY} " >> /root/.bashrc
+echo "export INPUT_ENV_VAR_NAME=${INSTRUQT_USER_EMAIL}" >> /root/.bashrc
+echo "export TF_VAR_subscription=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID} " >> /root/.bashrc
+echo "export TF_VAR_client=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_ID} " >> /root/.bashrc
+echo "export TF_VAR_clientsecret=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_PASSWORD} " >> /root/.bashrc
+echo "export TF_VAR_tenantazure=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_TENANT_ID} " >> /root/.bashrc
+echo "export TF_VAR_prosimo_teamName=${INSTRUQT_PARTICIPANT_ID} " >> /root/.bashrc
+echo "export TF_VAR_prosimo_token=${TF_VAR_prosimo_token} " >> /root/.bashrc
+
+source /root/.bashrc
+
+# Run terraform to prepare CSPs env and spin up Prosimo resources
+
+cd /root/prosimo-lab/assets/terraform
+terraform init 
+sleep 10
+terraform apply --auto-approve -target=prosimo_cloud_creds.aws -var Access_Key_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID} -var Access_Secret_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY} -var subscription=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID} -var client=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_ID} -var clientsecret=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_PASSWORD} -var tenantazure=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_TENANT_ID}
+sleep 5
+terraform apply --auto-approve -target=prosimo_cloud_creds.azure -var Access_Key_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID} -var Access_Secret_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY} -var subscription=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID} -var client=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_ID} -var clientsecret=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_PASSWORD} -var tenantazure=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_TENANT_ID}
+sleep 10
+terraform apply -auto-approve -target=module.prosimo_resource_aws -var Access_Key_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID} -var Access_Secret_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY} -var subscription=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID} -var client=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_ID} -var clientsecret=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_PASSWORD} -var tenantazure=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_TENANT_ID} 
+sleep 10
+terraform apply -auto-approve -target=module.prosimo_resource_azure -var Access_Key_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_ACCESS_KEY_ID} -var Access_Secret_AWS=${INSTRUQT_AWS_ACCOUNT_PROSIMO_DEMO_AWS_SECRET_ACCESS_KEY} -var subscription=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SUBSCRIPTION_ID} -var client=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_ID} -var clientsecret=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_SPN_PASSWORD} -var tenantazure=${INSTRUQT_AZURE_SUBSCRIPTION_PROSIMO_TENANT_TENANT_ID} 
+
+# Set AWS creds
+cp ~/.aws/credentials /root/prosimo-lab/assets/terraform
